@@ -131,9 +131,43 @@ VAR_LABELS = {
 # =============================================================================
 # CARGA E CONSOLIDAÇÃO DOS DADOS
 # =============================================================================
+def _find_csv_files():
+    """Procura os CSVs em data/ e, se não achar, tenta a raiz do app
+    (cobre o caso de os arquivos terem sido enviados sem a subpasta data/)."""
+    app_root = os.path.dirname(os.path.abspath(__file__))
+    candidate_dirs = [DATA_DIR, app_root]
+    for folder in candidate_dirs:
+        files = sorted(glob.glob(os.path.join(folder, "*_air_quality_2014_2025.csv")))
+        if files:
+            return files
+    return []
+
+
 @st.cache_data(show_spinner="Consolidando as 24 bases de dados de poluição do ar...")
 def load_data():
-    files = sorted(glob.glob(os.path.join(DATA_DIR, "*_air_quality_2014_2025.csv")))
+    files = _find_csv_files()
+
+    if not files:
+        app_root = os.path.dirname(os.path.abspath(__file__))
+        st.error(
+            "Não encontrei nenhum arquivo CSV de poluição do ar. "
+            "Verifique se a pasta `data/` (com os 24 arquivos `*_air_quality_2014_2025.csv`) "
+            "está no repositório, no mesmo nível do `app.py`."
+        )
+        st.write("**Diagnóstico** — diretório do app:", app_root)
+        try:
+            st.write("Conteúdo da raiz do app:", os.listdir(app_root))
+        except Exception as e:
+            st.write("Erro ao listar a raiz:", e)
+        if os.path.isdir(DATA_DIR):
+            try:
+                st.write("Conteúdo da pasta data/:", os.listdir(DATA_DIR))
+            except Exception as e:
+                st.write("Erro ao listar data/:", e)
+        else:
+            st.write("A pasta `data/` não existe em:", DATA_DIR)
+        st.stop()
+
     frames = []
     for fp in files:
         key = os.path.basename(fp).replace("_air_quality_2014_2025.csv", "")
